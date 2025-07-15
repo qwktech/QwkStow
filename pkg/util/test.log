@@ -1,0 +1,3 @@
+2024/10/13 11:53:09 CanonPath cannot change working dir to "./usr/share/../bin": "chdir ./usr/share/../bin: no such file or directory"
+exit status 1
+FAIL	QwkStow/pkg/util	0.001s
