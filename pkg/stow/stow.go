@@ -132,5 +132,5 @@ func MarkStowDir(dir string) {
 //
 // Return: stow_package if link is owned by stow, otherwise ”.
 func LinkOwnedByPackage(target_subpath string, link_dest string) string {
-	return
+	return ""
 }
