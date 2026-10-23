@@ -30,12 +30,12 @@ func JoinPaths(paths []string) string {
 
 	for _, str := range paths {
 		trimmed := strings.TrimSpace(str)
-		trimmed = strings.Replace(trimmed, "/", "", -1)
+		trimmed = strings.ReplaceAll(trimmed, "//", "/")
 		trimmed = strings.TrimSpace(trimmed)
 		filteredPaths = append(filteredPaths, trimmed)
 	}
 
-	return filepath.Clean("/" + strings.Join(filteredPaths, "/"))
+	return filepath.Clean(strings.Join(filteredPaths, "/"))
 }
 
 // Parent finds the parent of the given path.
@@ -87,56 +87,50 @@ func RestoreCwd(prev string) {
 	if err != nil {
 		log.Fatalf("RestoreCwd believes your current directory, %q, has vanished: %q", prev, err)
 	}
-	return
 }
 
 // AdjustDotfile updates dotfile names
 // Parameters: target string, the name of the file to be renamed
 // Returns string of modified file name
 func AdjustDotfile(target string) string {
-	parts := strings.Split(target, "/")
-	pathLen := len(parts) - 1
-	fileName := parts[pathLen]
-
-	switch fileName {
+	switch target {
 	case ".":
 		return target
 	case "..":
 		return target
 	case "dot-":
 		return target
-	case "dot-.":
-		return target
 	}
 
-	if strings.HasPrefix(fileName, "dot-.") {
-		parts = append(parts[:pathLen], strings.Replace(fileName, "dot-", "", 1))
-	} else if strings.HasPrefix(fileName, "dot-") {
-		parts = append(parts[:pathLen], strings.Replace(fileName, "dot-", ".", 1))
+	noPrefix, found := strings.CutPrefix(target, "dot-")
+
+	if found && !strings.HasPrefix(noPrefix, ".") {
+		return strings.Replace(target, "dot-", ".", 1)
 	}
 
-	return strings.Join(parts, "/")
+	return target
 }
 
 // UnAdjustDotfile reverts dotfile names to pre-stow format. Needed when
 // unstowing with --compat and --dotfiles.
 // Parameters target string, the name of the file to be renamed.
 // Returns string of modified file name.
+// Expects file only, does not support full directory string.
 func UnAdjustDotfile(target string) string {
-	parts := strings.Split(target, "/")
-	pathLen := len(parts) - 1
-	fileName := parts[pathLen]
-
-	switch fileName {
+	switch target {
 	case ".":
 		return target
 	case "..":
 		return target
+	case ".\n":
+		return target
+	case "..\n":
+		return target
 	}
 
-	if strings.HasPrefix(fileName, ".") {
-		parts = append(parts[:pathLen], strings.Replace(fileName, ".", "dot-", 1))
+	if strings.HasPrefix(target, ".") {
+		target = strings.Replace(target, ".", "dot-", 1)
 	}
 
-	return strings.Join(parts, "/")
+	return target
 }
