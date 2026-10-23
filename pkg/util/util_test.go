@@ -1,155 +1,193 @@
 package util
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
+// Cases from stow/t/join_paths.t
 func TestJoinPaths(t *testing.T) {
-	got1 := JoinPaths([]string{"/usr", "/bin"})
-	got2 := JoinPaths([]string{"/usr /", " /bin/"})
-	got3 := JoinPaths([]string{" //usr ", " /bin// "})
-	got4 := JoinPaths([]string{".", "// usr //", "share", "../", "/bin/"})
+	tests := []struct {
+		in       []string
+		want     string
+		scenario string
+	}{
+		{[]string{"a/b/c", "d/e/f"}, "a/b/c/d/e/f", "simple"},
+		{[]string{"a/b/c", "/d/e/f"}, "/d/e/f", "relative then absolute"},
+		{[]string{"/a/b/c", "d/e/f"}, "/a/b/c/d/e/f", "absolute then relative"},
+		{[]string{"/a/b/c", "/d/e/f"}, "/d/e/f", "two absolutes"},
+		{[]string{"/a/b/c/", "/d/e/f/"}, "/d/e/f", "two absolutes with trailing /"},
+		{[]string{"///a/b///c//", "/d///////e/f"}, "/d/e/f", "multiple /'s, absolute"},
+		{[]string{"///a/b///c//", "d///////e/f"}, "/a/b/c/d/e/f", "multiple /'s, relative"},
+		{[]string{"", "a/b/c"}, "a/b/c", "first empty"},
+		{[]string{"a/b/c", ""}, "a/b/c", "second empty"},
+		{[]string{"/", "a/b/c"}, "/a/b/c", "first is /"},
+		{[]string{"a/b/c", "/"}, "/", "second is /"},
+		{[]string{"../a1/b1/../c1/", "a2/../b2/e2"}, "../a1/c1/b2/e2", "relative with ../"},
+		{[]string{"../a1/b1/../c1/", "/a2/../b2/e2"}, "/b2/e2", "absolute with ../"},
+		{[]string{"../a1/../../c1", "a2/../../"}, "../..", "lots of ../"},
+		{[]string{"./", "../a2"}, "../a2", "drop any \"./\""},
+		{[]string{"./a1", "../../a2"}, "../a2", "drop any \"./foo\""},
+		{[]string{"a/b/c", "."}, "a/b/c", ". on RHS"},
+		{[]string{"a/b/c", ".", "d/e"}, "a/b/c/d/e", ". in middle"},
+		{[]string{"0", "a/b"}, "0/a/b", "0 at start"},
+		{[]string{"/0", "a/b"}, "/0/a/b", "/0 at start"},
+		{[]string{"a/b/c", "0", "d/e"}, "a/b/c/0/d/e", "0 in middle"},
+		{[]string{"a/b", "0"}, "a/b/0", "0 at end"},
 
-	want := "/usr/bin"
+		// checked against Stow::Util::join_paths
+		{[]string{}, "", "no parts"},
+		{[]string{"..foo/..", "a"}, "..foo/../a", "component starting with .. is kept"},
+		{[]string{"a", "/.."}, "/", "/.. collapses to /"},
+		{[]string{"/usr /", " /bin/"}, "/usr / /bin", "spaces are kept"},
+	}
 
-	if got1 != want {
-		t.Errorf("\nJoinPaths test 1 failed:\nGot: %q\nWant: %q\n", got1, want)
-	}
-	if got2 != want {
-		t.Errorf("\nJoinPaths test 2 failed:\nGot: %q\nWant: %q\n", got2, want)
-	}
-	if got3 != want {
-		t.Errorf("\nJoinPaths test 3 failed:\nGot: %q\nWant: %q\n", got3, want)
-	}
-	if got4 != want {
-		t.Errorf("\nJoinPaths test 4 failed:\nGot: %q\nWant: %q\n", got4, want)
+	for _, tc := range tests {
+		got := JoinPaths(tc.in)
+		if got != tc.want {
+			t.Errorf("\nJoinPaths %s test failed:\nIn: %q\nGot: %q\nWant: %q", tc.scenario, tc.in, got, tc.want)
+		}
 	}
 }
 
+// Cases from stow/t/parent.t
 func TestParent(t *testing.T) {
-	in1 := []string{"usr", "bin"}
-	in2 := []string{"usr"}
-	in3 := []string{}
-	got1 := Parent(in1)
-	got2 := Parent(in2)
-	got3 := Parent(in3)
+	tests := []struct {
+		in       string
+		want     string
+		scenario string
+	}{
+		{"a/b/c", "a/b", "no leading or trailing /"},
+		{"/a/b/c", "/a/b", "leading /"},
+		{"a/b/c/", "a/b", "trailing /"},
+		{"/////a///b///c///", "/a/b", "multiple /"},
+		{"a", "", "empty parent"},
 
-	want1 := "/usr"
-	want2 := "/"
-
-	if got1 != want1 {
-		t.Errorf("\nParent test failed:\nGot: %q\nWant: %q", got1, want1)
+		// checked against Stow::Util::parent
+		{"/a", "", "single absolute component"},
+		{"/", "", "root"},
+		{"", "", "empty"},
 	}
-	if got2 != want2 {
-		t.Errorf("\nParent test failed:\nGot: %q\nWant: %q", got2, want2)
-	}
-	if got3 != want2 {
-		t.Errorf("\nParent test failed:\nGot: %q\nWant: %q", got3, want2)
-	}
-}
 
-func TestCannonPath(t *testing.T) {
-	got1 := CanonPath("/usr/bin")
-
-	want1 := "/usr/bin"
-
-	if got1 != want1 {
-		t.Errorf("\nCannonPath test failed:\nGot: %q\nWant: %q", got1, want1)
+	for _, tc := range tests {
+		got := Parent([]string{tc.in})
+		if got != tc.want {
+			t.Errorf("\nParent %s test failed:\nIn: %q\nGot: %q\nWant: %q", tc.scenario, tc.in, got, tc.want)
+		}
 	}
 }
 
-/*
-func TestRestoreCwd(t *testing.T){
-  var got1 string
-}
-*/
+// stow/t has no unit test for canon_path
+func TestCanonPath(t *testing.T) {
+	real, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(real, "sub")
+	link := filepath.Join(real, "link")
+	if err := os.Mkdir(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(sub, link); err != nil {
+		t.Fatal(err)
+	}
 
+	t.Chdir(sub)
+
+	tests := []struct {
+		in       string
+		want     string
+		scenario string
+	}{
+		{real, real, "absolute"},
+		{"..", real, "relative"},
+		{link, sub, "symlink is resolved"},
+		{".", sub, "current dir"},
+	}
+
+	for _, tc := range tests {
+		got := CanonPath(tc.in)
+		if got != tc.want {
+			t.Errorf("\nCanonPath %s test failed:\nIn: %q\nGot: %q\nWant: %q", tc.scenario, tc.in, got, tc.want)
+		}
+	}
+
+	// $PWD names the symlink, Perl's getcwd still returns the real dir
+	t.Chdir(link)
+	t.Setenv("PWD", link)
+	if got := CanonPath("."); got != sub {
+		t.Errorf("\nCanonPath symlinked $PWD test failed:\nGot: %q\nWant: %q", got, sub)
+	}
+}
+
+// stow/t has no unit test for restore_cwd
+func TestRestoreCwd(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(t.TempDir())
+
+	RestoreCwd(dir)
+
+	if got, _ := os.Getwd(); got != dir {
+		t.Errorf("\nRestoreCwd test failed:\nGot: %q\nWant: %q", got, dir)
+	}
+}
+
+// Cases from the adjust_dotfile() subtest in stow/t/dotfiles.t
 func TestAdjustDotfile(t *testing.T) {
-	got1 := AdjustDotfile("/usr/bin/testing/dot-testrc")
-	got2 := AdjustDotfile("testing/dot-.testrc2")
-	got3 := AdjustDotfile("/home/testing/testrc3")
-	got4 := AdjustDotfile("./testing/.testrc4")
-	got5 := AdjustDotfile("./testing/dot-")
-	got6 := AdjustDotfile("./testing/dot-.")
-	got7 := AdjustDotfile("~/testing/dot-testrc7")
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{"file", "file"},
+		{"dot-", "dot-"},
+		{"dot-.", "dot-."},
+		{"dot-file", ".file"},
 
-	want1 := "/usr/bin/testing/.testrc"
-	want2 := "testing/.testrc2"
-	want3 := "/home/testing/testrc3"
-	want4 := "./testing/.testrc4"
-	want5 := "./testing/dot-"
-	want6 := "./testing/dot-."
-	want7 := "~/testing/.testrc7"
-
-	if got1 != want1 {
-		t.Errorf("\nAdjustDotFile test failed:\nGot: %q\nWant: %q", got1, want1)
+		// checked against Stow::Util::adjust_dotfile
+		{"dot-.testrc2", "dot-.testrc2"},
+		{"dot-..", "dot-.."},
+		{"dot-dot-x", ".dot-x"},
+		{"dot-\n", ".\n"},
+		{"testing/dot-testrc", "testing/dot-testrc"},
+		{"", ""},
 	}
 
-	if got2 != want2 {
-		t.Errorf("\nAdjustDotFile test failed:\nGot: %q\nWant: %q", got2, want2)
-	}
-
-	if got3 != want3 {
-		t.Errorf("\nAdjustDotFile test failed:\nGot: %q\nWant: %q", got3, want3)
-	}
-
-	if got4 != want4 {
-		t.Errorf("\nAdjustDotFile test failed:\nGot: %q\nWant: %q", got4, want4)
-	}
-
-	if got5 != want5 {
-		t.Errorf("\nAdjustDotFile test failed:\nGot: %q\nWant: %q", got5, want5)
-	}
-
-	if got6 != want6 {
-		t.Errorf("\nAdjustDotFile test failed:\nGot: %q\nWant: %q", got6, want6)
-	}
-
-	if got7 != want7 {
-		t.Errorf("\nAdjustDotFile test failed:\nGot: %q\nWant: %q", got7, want7)
+	for _, tc := range tests {
+		got := AdjustDotfile(tc.in)
+		if got != tc.want {
+			t.Errorf("\nAdjustDotfile(%q) test failed:\nGot: %q\nWant: %q", tc.in, got, tc.want)
+		}
 	}
 }
 
+// Cases from the unadjust_dotfile() subtest in stow/t/dotfiles.t
 func TestUnAdjustDotfile(t *testing.T) {
-	got1 := UnAdjustDotfile("/usr/bin/testing/.testrc")
-	got2 := UnAdjustDotfile("testing/.testrc2")
-	got3 := UnAdjustDotfile("/home/testing/.testrc3")
-	got4 := UnAdjustDotfile("./testing/testrc4")
-	got5 := UnAdjustDotfile("./testing/dot-")
-	got6 := UnAdjustDotfile("./testing/dot-.")
-	got7 := UnAdjustDotfile("~/testing/.testrc7")
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{"file", "file"},
+		{".", "."},
+		{"..", ".."},
+		{".file", "dot-file"},
 
-	want1 := "/usr/bin/testing/dot-testrc"
-	want2 := "testing/dot-testrc2"
-	want3 := "/home/testing/dot-testrc3"
-	want4 := "./testing/testrc4"
-	want5 := "./testing/dot-"
-	want6 := "./testing/dot-."
-	want7 := "~/testing/dot-testrc7"
-
-	if got1 != want1 {
-		t.Errorf("\nAdjustDotFile test failed:\nGot: %q\nWant: %q", got1, want1)
+		// checked against Stow::Util::unadjust_dotfile
+		{"..file", "dot-.file"},
+		{"...", "dot-.."},
+		{"", ""},
+		{"testing/.testrc2", "testing/.testrc2"},
+		{"./testing/testrc4", "dot-/testing/testrc4"},
+		{"~/testing/.testrc7", "~/testing/.testrc7"},
+		{".\n", ".\n"},
+		{"..\n", "..\n"},
+		{"\n.", "\n."},
 	}
 
-	if got2 != want2 {
-		t.Errorf("\nAdjustDotFile test failed:\nGot: %q\nWant: %q", got2, want2)
-	}
-
-	if got3 != want3 {
-		t.Errorf("\nAdjustDotFile test failed:\nGot: %q\nWant: %q", got3, want3)
-	}
-
-	if got4 != want4 {
-		t.Errorf("\nAdjustDotFile test failed:\nGot: %q\nWant: %q", got4, want4)
-	}
-
-	if got5 != want5 {
-		t.Errorf("\nAdjustDotFile test failed:\nGot: %q\nWant: %q", got5, want5)
-	}
-
-	if got6 != want6 {
-		t.Errorf("\nAdjustDotFile test failed:\nGot: %q\nWant: %q", got6, want6)
-	}
-
-	if got7 != want7 {
-		t.Errorf("\nAdjustDotFile test failed:\nGot: %q\nWant: %q", got7, want7)
+	for _, tc := range tests {
+		got := UnAdjustDotfile(tc.in)
+		if got != tc.want {
+			t.Errorf("\nUnAdjustDotfile(%q) test failed:\nGot: %q\nWant: %q", tc.in, got, tc.want)
+		}
 	}
 }
