@@ -27,12 +27,13 @@
 // along with this program. If not, see https://www.gnu.org/licenses/.
 package stow
 
-// New
+// New - used as constructor in source. is it needed?
 func New() {
 	return
 }
 
-// GetVerbosity
+// GetVerbosity - sets variable when verbose flag is set. can be taken care of
+// in option setter function?
 func GetVerbosity() {
 	return
 }
@@ -54,7 +55,9 @@ func InitState() {
 // executed in order to stow the given packages.
 // Returns a slice of conflicts.
 func PlanStow(packages []string) []string {
-	return [""]string
+	a := []string{"Hello", "World"}
+
+	return a
 }
 
 // WithinTargetDo executes code within target directory, preserving cwd.

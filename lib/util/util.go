@@ -26,26 +26,39 @@ import (
 // redundant path elements: '//' => '/' and 'a/b/../c' => 'a/c' and
 // returns a concatenated string.
 func JoinPaths(paths []string) string {
+	if len(paths) == 0 {
+		return ""
+	}
+
 	var filteredPaths []string
 
 	for _, str := range paths {
-		trimmed := strings.TrimSpace(str)
-		trimmed = strings.ReplaceAll(trimmed, "//", "/")
-		trimmed = strings.TrimSpace(trimmed)
-		filteredPaths = append(filteredPaths, trimmed)
+		if str != "" {
+			//trimmed := strings.ReplaceAll(str, "//", "/")
+			trimmed := strings.TrimSpace(str)
+			filteredPaths = append(filteredPaths, trimmed)
+		}
+	}
+
+	if strings.HasPrefix(filteredPaths[len(filteredPaths) - 1], "/") {
+		return filepath.Clean(filteredPaths[len(filteredPaths) - 1])
 	}
 
 	return filepath.Clean(strings.Join(filteredPaths, "/"))
 }
 
 // Parent finds the parent of the given path.
-// Parameter path [] => a slice containg components of the path
+// Parameter path contains the path you want to find the parent of as a string.
 // Returns returns a path string
-func Parent(path []string) string {
-	if len(path) <= 1 {
-		return "/"
+func Parent(path string) string {
+	trimmed := strings.TrimRight(path, "/")
+
+	before, _, found := strings.CutLast(trimmed, "/")
+	if !found || before == "" {
+		return ""
 	}
-	return "/" + strings.Join(path[:len(path)-1], "/")
+
+	return filepath.Clean(before)
 }
 
 // CanonPath finds absolute canonical path of given path

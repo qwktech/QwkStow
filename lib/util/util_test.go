@@ -39,8 +39,8 @@ func TestJoinPaths(t *testing.T) {
 		// checked against Stow::Util::join_paths
 		{[]string{}, "", "no parts"},
 		{[]string{"..foo/..", "a"}, "..foo/../a", "component starting with .. is kept"},
-		{[]string{"a", "/.."}, "/", "/.. collapses to /"},
-		{[]string{"/usr /", " /bin/"}, "/usr / /bin", "spaces are kept"},
+		{[]string{"a", "/.."}, "/", "/.. collapses to /"},																					// necesary?
+		{[]string{"/usr /", " /bin/"}, "/usr / /bin", "spaces are kept"}, 													// necesary?
 	}
 
 	for _, tc := range tests {
@@ -71,7 +71,7 @@ func TestParent(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		got := Parent([]string{tc.in})
+		got := Parent(tc.in)
 		if got != tc.want {
 			t.Errorf("\nParent %s test failed:\nIn: %q\nGot: %q\nWant: %q", tc.scenario, tc.in, got, tc.want)
 		}
